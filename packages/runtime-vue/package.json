@@ -1,0 +1,44 @@
+{
+  "name": "@spritejs/runtime-vue",
+  "version": "3.0.0",
+  "description": "@spritejs/runtime-vue",
+  "main": "index.js",
+  "module": "dist/runtime-vue.esm-bundler.js",
+  "types": "dist/runtime-vue.d.ts",
+  "unpkg": "dist/runtime-vue.global.js",
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "sideEffects": false,
+  "buildOptions": {
+    "name": "SpriteJSVueRuntime",
+    "formats": [
+      "esm-bundler",
+      "esm-browser",
+      "cjs",
+      "global"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/spritejs/runtime-vue.git"
+  },
+  "keywords": [
+    "vue",
+    "spritejs",
+    "vue next"
+  ],
+  "author": "Jaye Lee",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/spritejs/runtime-vue/issues"
+  },
+  "homepage": "https://github.com/spritejs/runtime-vue",
+  "dependencies": {
+    "@vue/runtime-core": "3.0.0",
+    "@vue/shared": "3.0.0",
+    "csstype": "^2.6.8",
+    "spritejs": "^3.7.27"
+  }
+}

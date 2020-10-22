@@ -41,7 +41,7 @@ module.exports = {
     },
     // Packages targeting DOM
     {
-      files: ['packages/{vue,runtime-dom}/**'],
+      files: ['packages/{vue,runtime-dom,runtime-vue}/**'],
       rules: {
         'no-restricted-globals': ['error', ...NodeGlobals]
       }

@@ -1,6 +1,7 @@
 module.exports = {
   preset: 'ts-jest',
   setupFilesAfterEnv: ['./scripts/setupJestEnv.ts'],
+  setupFiles: ['jest-canvas-mock'],
   globals: {
     __DEV__: true,
     __TEST__: true,
