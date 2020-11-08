@@ -153,6 +153,7 @@ export function flushPreFlushCbs(
   }
 }
 
+// 一次性处理，postFlushCbs是什么？什么时候入队列，什么时候出队列
 export function flushPostFlushCbs(seen?: CountMap) {
   if (pendingPostFlushCbs.length) {
     const deduped = [...new Set(pendingPostFlushCbs)]

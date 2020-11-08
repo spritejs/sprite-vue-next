@@ -8,40 +8,45 @@ const doc = (typeof document !== 'undefined' ? document : null) as Document
 let tempContainer: HTMLElement
 let tempSVGContainer: SVGElement
 
-const isValidNodeType = spritejs.isValidNodeType || spritejs.isSpriteNode
-const createElement = spritejs.createNode || spritejs.createElement
-const Scene = spritejs.Scene
-const Label = spritejs.Label
-const BaseNode = spritejs.BaseNode || spritejs.Node
-const isNewVersion = !!spritejs.isSpriteNode
+declare module 'spritejs' {
+  class EChart extends spritejs.Node {
+    createContext(): void
+    setOption(option: Record<string, any>): void
+    render(): void
+  }
 
-type BaseNode = spritejs.BaseNode | spritejs.Node
+  interface Node {
+    dispatchEvent(event: string, data?: Record<string, any>): void
+  }
+}
 
 export const nodeOps: Omit<RendererOptions<Node, Element>, 'patchProp'> = {
   insert: (child, parent, anchor) => {
-    if (parent instanceof BaseNode) {
+    if (parent instanceof spritejs.Node) {
       if (child.nodeType === document.TEXT_NODE) {
-        if (parent instanceof Label) {
+        if (parent instanceof spritejs.Label) {
           parent.text = child.textContent as string
         } else if (parent.appendChild) {
           parent.appendChild(child)
         }
       } else if (
-        child instanceof BaseNode ||
+        child instanceof spritejs.Node ||
         child.nodeType === document.COMMENT_NODE ||
-        child instanceof BaseNode
+        child instanceof spritejs.Node
       ) {
         parent.insertBefore(child, anchor || null)
       }
     } else {
-      if (child instanceof Scene) child = (child as spritejs.Scene).container
-      if (anchor instanceof Scene) anchor = (anchor as spritejs.Scene).container
+      if (child instanceof spritejs.Scene)
+        child = (child as spritejs.Scene).container
+      if (anchor instanceof spritejs.Scene)
+        anchor = (anchor as spritejs.Scene).container
       parent.insertBefore(child, anchor || null)
     }
   },
 
   remove: child => {
-    if (child instanceof Scene) {
+    if (child instanceof spritejs.Scene) {
       child = child.container
     }
     const parent = child.parentNode
@@ -50,31 +55,36 @@ export const nodeOps: Omit<RendererOptions<Node, Element>, 'patchProp'> = {
     }
   },
 
-  createElement: (tag, isSVG, is): Element => {
+  createElement: (vnode, tag, isSVG, is): Element => {
     let hasPrefix = false
     let tagName = tag
-    // TODO: isReservedTag?
-    let isValidSpriteNode = isValidNodeType(tagName)
+    let isValidSpriteNode = spritejs.isSpriteNode(tagName)
 
     if (tag.startsWith('s-')) {
       hasPrefix = true
       tagName = tag.slice(2)
-      isValidSpriteNode = isValidNodeType(tagName)
+      isValidSpriteNode = spritejs.isSpriteNode(tagName)
     }
 
+    // TODO: extend actions and states from parent vnode
     if (isValidSpriteNode) {
-      // TODO: extend actions and states from parent vnode
-      // TODO: scene perload
+      const props = vnode.props as Record<string, any>
+
       if (tagName === 'scene') {
         const elm = doc.createElement('div')
-        if (isNewVersion) {
-          return createElement(tagName, { container: elm }) as any
-        } else {
-          return createElement(tagName, elm) as any
-        }
+        const scene = spritejs.createElement(tagName, {
+          container: elm
+        }) as spritejs.Scene
+
+        const resources = props.resources || props.attrs.resources
+        scene.preload(...resources).then(() => {
+          scene.dispatchEvent('load', { resources })
+        })
+
+        return scene as any
       }
 
-      const node = createElement(tagName)
+      const node = spritejs.createElement(tagName, props) as spritejs.Node
       if (hasPrefix) {
         const _tagName = `S-${tagName}`
         Object.defineProperty(node, 'tagName', {
@@ -84,7 +94,10 @@ export const nodeOps: Omit<RendererOptions<Node, Element>, 'patchProp'> = {
         })
       }
 
-      // TODO: when tagName is `echart`, should setOption for echart node
+      if (tagName === 'echart' && props.option) {
+        ;(node as spritejs.EChart).setOption(props.option)
+      }
+
       return node as any
     }
 
@@ -98,7 +111,7 @@ export const nodeOps: Omit<RendererOptions<Node, Element>, 'patchProp'> = {
   createComment: text => doc.createComment(text),
 
   setText: (node, text) => {
-    if (node instanceof Label) {
+    if (node instanceof spritejs.Label) {
       node.text = text
     } else {
       node.nodeValue = text
@@ -111,18 +124,7 @@ export const nodeOps: Omit<RendererOptions<Node, Element>, 'patchProp'> = {
 
   parentNode: node => node.parentNode as Element | null | any,
 
-  nextSibling: node => {
-    if (node instanceof spritejs.BaseNode) {
-      if (node.parent) {
-        const parent = node.parent as spritejs.Block
-        const idx = parent.childNodes.indexOf(node)
-        return parent.childNodes[idx + 1]
-      }
-      return null
-    }
-    // spritejs 3.x has nextSibling getter on Node
-    return node.nextSibling
-  },
+  nextSibling: node => node.nextSibling,
 
   querySelector: selector => doc.querySelector(selector),
 

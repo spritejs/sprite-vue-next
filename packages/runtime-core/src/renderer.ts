@@ -108,6 +108,7 @@ export interface RendererOptions<
   insert(el: HostNode, parent: HostElement, anchor?: HostNode | null): void
   remove(el: HostNode): void
   createElement(
+    vnode: VNode,
     type: string,
     isSVG?: boolean,
     isCustomizedBuiltIn?: string
@@ -429,7 +430,8 @@ function baseCreateRenderer(
   if (__ESM_BUNDLER__ && !__TEST__) {
     initFeatureFlags()
   }
-
+  // 宿主环境提供的真实节点的方法，比如runtime-dom是document上的，spritejs实现了标准的dom API
+  // 因此也可以提供这样的方法
   const {
     insert: hostInsert,
     remove: hostRemove,
@@ -466,6 +468,7 @@ function baseCreateRenderer(
       n1 = null
     }
 
+    // full diff
     if (n2.patchFlag === PatchFlags.BAIL) {
       optimized = false
       n2.dynamicChildren = null
@@ -556,6 +559,7 @@ function baseCreateRenderer(
     }
   }
 
+  // 将n2 vnode的dom节点替换为文本节点，然后插入到container中
   const processText: ProcessTextOrCommentFn = (n1, n2, container, anchor) => {
     if (n1 == null) {
       hostInsert(
@@ -564,6 +568,7 @@ function baseCreateRenderer(
         anchor
       )
     } else {
+      // 将n1的dom节点设置为n2的自节点（文本内容）
       const el = (n2.el = n1.el!)
       if (n2.children !== n1.children) {
         hostSetText(el, n2.children as string)
@@ -571,6 +576,7 @@ function baseCreateRenderer(
     }
   }
 
+  // 插入注释节点，如果n1为null则插入container，否则直接替换
   const processCommentNode: ProcessTextOrCommentFn = (
     n1,
     n2,
@@ -589,6 +595,7 @@ function baseCreateRenderer(
     }
   }
 
+  // 直接插入静态节点到container中
   const mountStaticNode = (
     n2: VNode,
     container: RendererElement,
@@ -663,6 +670,7 @@ function baseCreateRenderer(
     hostRemove(vnode.anchor!)
   }
 
+  // 挂载或者patchElement
   const processElement = (
     n1: VNode | null,
     n2: VNode,
@@ -689,6 +697,11 @@ function baseCreateRenderer(
     }
   }
 
+  // 挂载元素节点，如果该vnode有el节点，说明vnode是被重复使用的，但vnode上的el却不能被重复使用，
+  // 只有staticNode才可以被重复使用，所以需要cloneNode确保el节点是相同的
+
+  // 如果是文本节点，直接设置el的文本，如果是数组节点，先挂载子节点，等子节点挂载再挂载父节点，因为父节点可能
+  // 会依赖父节点上的props，比如说 select 的 value 属性。
   const mountElement = (
     vnode: VNode,
     container: RendererElement,
@@ -722,6 +735,7 @@ function baseCreateRenderer(
       el = vnode.el = hostCloneNode(vnode.el)
     } else {
       el = vnode.el = hostCreateElement(
+        vnode,
         vnode.type as string,
         isSVG,
         props && props.is
@@ -743,10 +757,11 @@ function baseCreateRenderer(
         )
       }
 
+      // 触发指令响应created
       if (dirs) {
         invokeDirectiveHook(vnode, null, parentComponent, 'created')
       }
-      // props
+      // 处理props，触发vnode上beforeMounted钩子
       if (props) {
         for (const key in props) {
           if (!isReservedProp(key)) {
@@ -764,12 +779,15 @@ function baseCreateRenderer(
           }
         }
         if ((vnodeHook = props.onVnodeBeforeMount)) {
+          // before mounted
           invokeVNodeHook(vnodeHook, parentComponent, vnode)
         }
       }
       // scopeId
       setScopeId(el, scopeId, vnode, parentComponent)
     }
+
+    // 如果是开发环境，或者生产环境的devtool，将vnode和parentComponent的引用添加到el上
     if (__DEV__ || __FEATURE_PROD_DEVTOOLS__) {
       Object.defineProperty(el, '__vnode', {
         value: vnode,
@@ -780,6 +798,7 @@ function baseCreateRenderer(
         enumerable: false
       })
     }
+    // 触发指令响应beforeMounted
     if (dirs) {
       invokeDirectiveHook(vnode, null, parentComponent, 'beforeMount')
     }
@@ -792,6 +811,7 @@ function baseCreateRenderer(
     if (needCallTransitionHooks) {
       transition!.beforeEnter(el)
     }
+    // 将节点插入container，触发虚拟节点mounted钩子，触发指令响应mounted
     hostInsert(el, container, anchor)
     if (
       (vnodeHook = props && props.onVnodeMounted) ||
@@ -799,6 +819,7 @@ function baseCreateRenderer(
       dirs
     ) {
       queuePostRenderEffect(() => {
+        // mounted
         vnodeHook && invokeVNodeHook(vnodeHook, parentComponent, vnode)
         needCallTransitionHooks && transition!.enter(el)
         dirs && invokeDirectiveHook(vnode, null, parentComponent, 'mounted')
@@ -1242,6 +1263,7 @@ function baseCreateRenderer(
     isSVG,
     optimized
   ) => {
+    // 创建组件的实例
     const instance: ComponentInternalInstance = (initialVNode.component = createComponentInstance(
       initialVNode,
       parentComponent,
@@ -1266,6 +1288,7 @@ function baseCreateRenderer(
     if (__DEV__) {
       startMeasure(instance, `init`)
     }
+    // 设置组件，最关键的一步，在这处理
     setupComponent(instance)
     if (__DEV__) {
       endMeasure(instance, `init`)
@@ -1274,6 +1297,7 @@ function baseCreateRenderer(
     // setup() is async. This component relies on async logic to be resolved
     // before proceeding
     if (__FEATURE_SUSPENSE__ && instance.asyncDep) {
+      // suspense https://vueschool.io/articles/vuejs-tutorials/exciting-new-features-in-vue-3/
       parentSuspense && parentSuspense.registerDep(instance, setupRenderEffect)
 
       // Give it a placeholder if this is not hydration
@@ -1285,6 +1309,7 @@ function baseCreateRenderer(
       return
     }
 
+    // 设置渲染所触发的hooks
     setupRenderEffect(
       instance,
       initialVNode,
@@ -1365,6 +1390,7 @@ function baseCreateRenderer(
         if (__DEV__) {
           startMeasure(instance, `render`)
         }
+        // 组件的节点树
         const subTree = (instance.subTree = renderComponentRoot(instance))
         if (__DEV__) {
           endMeasure(instance, `render`)
@@ -2191,6 +2217,7 @@ function baseCreateRenderer(
     return hostNextSibling((vnode.anchor || vnode.el)!)
   }
 
+  // 渲染方法，createAppAPI(render, hydrate): createApp
   const render: RootRenderFunction = (vnode, container) => {
     if (vnode == null) {
       if (container._vnode) {

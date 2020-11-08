@@ -13,7 +13,7 @@
       "args": ["${fileBasename}", "--runInBand", "--detectOpenHandles"],
       "cwd": "${workspaceFolder}",
       "preLaunchTask": null,
-      "runtimeExecutable": null,
+      "runtimeExecutable": "/Users/makeco/.nvm/versions/node/v14.9.0/bin/node",
       "runtimeArgs": ["--nolazy"],
       "env": {
         "NODE_ENV": "development"

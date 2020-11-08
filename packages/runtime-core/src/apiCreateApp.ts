@@ -120,6 +120,7 @@ export type CreateAppFunction<HostElement> = (
 
 let uid = 0
 
+// 高介函数，返回一个创建app实例的函数
 export function createAppAPI<HostElement>(
   render: RootRenderFunction,
   hydrate?: RootHydrateFunction
@@ -130,6 +131,7 @@ export function createAppAPI<HostElement>(
       rootProps = null
     }
 
+    // 创建app上下文对象
     const context = createAppContext()
     const installedPlugins = new Set()
 
@@ -226,6 +228,7 @@ export function createAppAPI<HostElement>(
 
       mount(rootContainer: HostElement, isHydrate?: boolean): any {
         if (!isMounted) {
+          // 为跟节点创建vnode，这是第一个vnode，createApp方法传入的rootProps是作为根节点的props使用的
           const vnode = createVNode(
             rootComponent as ConcreteComponent,
             rootProps
@@ -247,6 +250,7 @@ export function createAppAPI<HostElement>(
             render(vnode, rootContainer)
           }
           isMounted = true
+          // app上存了rootContainer，rootContainer也存了app
           app._container = rootContainer
           // for devtools and telemetry
           ;(rootContainer as any).__vue_app__ = app
